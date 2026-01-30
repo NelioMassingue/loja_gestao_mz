@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Meu Perfil{% endblock %}
+{% block page_title %}Meu Perfil{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-person-circle"></i> Informações do Usuário
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Nome</label>
+                    <p class="h5">{{ current_user.nome }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Email</label>
+                    <p class="h5">{{ current_user.email }}</p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Tipo de Acesso</label>
+                    <p>
+                        {% if current_user.tipo == 'admin' %}
+                        <span class="badge bg-danger">Administrador</span>
+                        {% elif current_user.tipo == 'gerente' %}
+                        <span class="badge bg-warning">Gerente</span>
+                        {% else %}
+                        <span class="badge bg-info">Vendedor</span>
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label text-muted">Membro desde</label>
+                    <p>{{ current_user.data_criacao|data }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="bi bi-key"></i> Alterar Senha
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('auth.alterar_senha') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Senha Atual</label>
+                        <input type="password" name="senha_atual" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Nova Senha</label>
+                        <input type="password" name="senha_nova" class="form-control" required minlength="6">
+                        <small class="text-muted">Mínimo 6 caracteres</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Confirmar Nova Senha</label>
+                        <input type="password" name="senha_confirmacao" class="form-control" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Alterar Senha
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

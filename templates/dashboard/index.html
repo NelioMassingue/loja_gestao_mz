@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard - Visão Geral{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Cards de Estatísticas -->
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Vendas Hoje</h6>
+                        <h3 class="mb-0">{{ vendas_hoje|moeda }}</h3>
+                    </div>
+                    <i class="bi bi-cash-stack" style="font-size: 3rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Vendas do Mês</h6>
+                        <h3 class="mb-0">{{ vendas_mes|moeda }}</h3>
+                    </div>
+                    <i class="bi bi-graph-up-arrow" style="font-size: 3rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Produtos</h6>
+                        <h3 class="mb-0">{{ total_produtos }}</h3>
+                    </div>
+                    <i class="bi bi-box-seam" style="font-size: 3rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-uppercase mb-1">Estoque Baixo</h6>
+                        <h3 class="mb-0">{{ produtos_estoque_baixo }}</h3>
+                    </div>
+                    <i class="bi bi-exclamation-triangle" style="font-size: 3rem; opacity: 0.5;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Gráfico de Vendas -->
+    <div class="col-md-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-bar-chart"></i> Vendas dos Últimos 7 Dias
+            </div>
+            <div class="card-body">
+                <canvas id="vendasChart" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Produtos Mais Vendidos -->
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-trophy"></i> Produtos Mais Vendidos (Mês)
+            </div>
+            <div class="card-body">
+                {% if produtos_mais_vendidos %}
+                <div class="list-group list-group-flush">
+                    {% for produto, quantidade in produtos_mais_vendidos %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex justify-content-between">
+                            <span class="text-truncate">{{ produto.nome }}</span>
+                            <span class="badge bg-primary">{{ quantidade }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">Nenhuma venda registrada este mês.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Últimas Vendas -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history"></i> Últimas Vendas</span>
+                <a href="{{ url_for('vendas.listar') }}" class="btn btn-sm btn-primary">Ver Todas</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nº Venda</th>
+                                <th>Data/Hora</th>
+                                <th>Cliente</th>
+                                <th>Forma Pagamento</th>
+                                <th>Total</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for venda in ultimas_vendas %}
+                            <tr>
+                                <td><strong>{{ venda.numero_venda }}</strong></td>
+                                <td>{{ venda.data_venda|data_hora }}</td>
+                                <td>{{ venda.cliente.nome if venda.cliente else 'Cliente não informado' }}</td>
+                                <td><span class="badge bg-info">{{ venda.forma_pagamento }}</span></td>
+                                <td><strong>{{ venda.total|moeda }}</strong></td>
+                                <td>
+                                    <a href="{{ url_for('vendas.detalhes', id=venda.id) }}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Gráfico de Vendas
+    const ctx = document.getElementById('vendasChart');
+    const vendasData = {{ vendas_por_dia|tojson }};
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: vendasData.map(d => d.dia),
+            datasets: [{
+                label: 'Vendas (MT)',
+                data: vendasData.map(d => d.total),
+                backgroundColor: 'rgba(52, 152, 219, 0.5)',
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('pt-BR', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            }) + ' MT';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

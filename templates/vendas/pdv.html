@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}PDV - Ponto de Venda{% endblock %}
+{% block page_title %}PDV - Ponto de Venda{% endblock %}
+
+{% block extra_css %}
+<style>
+    .pdv-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+    
+    .produtos-area {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+    }
+    
+    .carrinho-area {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
+    }
+    
+    .produto-item {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .produto-item:hover {
+        border-color: #3498db;
+        box-shadow: 0 2px 8px rgba(52, 152, 219, 0.2);
+    }
+    
+    .carrinho-item {
+        border-bottom: 1px solid #e0e0e0;
+        padding: 10px 0;
+    }
+    
+    .total-area {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+    
+    @media (max-width: 992px) {
+        .pdv-container {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdv-container">
+    <!-- Área de Produtos -->
+    <div class="produtos-area">
+        <h5 class="mb-3"><i class="bi bi-search"></i> Buscar Produto</h5>
+        
+        <div class="mb-4">
+            <input type="text" id="buscaProduto" class="form-control form-control-lg" 
+                   placeholder="Digite o nome ou código do produto..." autofocus>
+        </div>
+        
+        <div id="resultadosProdutos">
+            <p class="text-muted text-center">Digite para buscar produtos...</p>
+        </div>
+    </div>
+    
+    <!-- Carrinho de Compras -->
+    <div class="carrinho-area">
+        <h5 class="mb-3"><i class="bi bi-cart"></i> Carrinho</h5>
+        
+        <div id="carrinhoItens">
+            <p class="text-muted text-center">Carrinho vazio</p>
+        </div>
+        
+        <div class="total-area">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Subtotal:</span>
+                <strong id="subtotal">0,00 MT</strong>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Desconto (MT):</label>
+                <input type="number" id="desconto" class="form-control" value="0" step="0.01" min="0">
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+                <h5>Total:</h5>
+                <h4 class="text-primary" id="total">0,00 MT</h4>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Cliente (Opcional):</label>
+                <select id="cliente" class="form-select">
+                    <option value="">Cliente não informado</option>
+                    {% for cliente in clientes %}
+                    <option value="{{ cliente.id }}">{{ cliente.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Forma de Pagamento:</label>
+                <select id="formaPagamento" class="form-select" required>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="mpesa">M-Pesa</option>
+                    <option value="emola">E-Mola</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-success btn-lg w-100" id="btnFinalizar" disabled>
+                <i class="bi bi-check-circle"></i> Finalizar Venda
+            </button>
+            
+            <button class="btn btn-outline-danger btn-sm w-100 mt-2" id="btnLimpar">
+                <i class="bi bi-trash"></i> Limpar Carrinho
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Sucesso -->
+<div class="modal fade" id="sucessoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle"></i> Venda Realizada!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <h4>Venda <span id="numeroVenda"></span></h4>
+                <h3 class="text-success" id="totalVenda"></h3>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="btnImprimir">
+                    <i class="bi bi-printer"></i> Imprimir Recibo
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let carrinho = [];
+let buscaTimeout;
+
+// Buscar produtos
+$('#buscaProduto').on('input', function() {
+    clearTimeout(buscaTimeout);
+    const termo = $(this).val();
+    
+    if (termo.length < 2) {
+        $('#resultadosProdutos').html('<p class="text-muted text-center">Digite pelo menos 2 caracteres...</p>');
+        return;
+    }
+    
+    buscaTimeout = setTimeout(() => {
+        $.get('/produtos/api/buscar?termo=' + encodeURIComponent(termo), function(produtos) {
+            if (produtos.length === 0) {
+                $('#resultadosProdutos').html('<p class="text-muted text-center">Nenhum produto encontrado</p>');
+                return;
+            }
+            
+            let html = '';
+            produtos.forEach(p => {
+                html += `
+                    <div class="produto-item" onclick="adicionarProduto(${p.id}, '${p.nome}', ${p.preco_venda}, '${p.codigo}', ${p.estoque_atual})">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${p.nome}</strong>
+                                <div><small class="text-muted">Código: ${p.codigo}</small></div>
+                            </div>
+                            <div class="text-end">
+                                <strong class="text-success">${formatarMoeda(p.preco_venda)}</strong>
+                                <div><small class="text-muted">Estoque: ${p.estoque_atual} ${p.unidade_medida}</small></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            $('#resultadosProdutos').html(html);
+        });
+    }, 300);
+});
+
+// Adicionar produto ao carrinho
+function adicionarProduto(id, nome, preco, codigo, estoque) {
+    const item = carrinho.find(i => i.produto_id === id);
+    
+    if (item) {
+        if (item.quantidade >= estoque) {
+            alert('Estoque insuficiente!');
+            return;
+        }
+        item.quantidade++;
+    } else {
+        if (estoque <= 0) {
+            alert('Produto sem estoque!');
+            return;
+        }
+        carrinho.push({
+            produto_id: id,
+            nome: nome,
+            preco_unitario: preco,
+            quantidade: 1,
+            codigo: codigo,
+            estoque_maximo: estoque
+        });
+    }
+    
+    atualizarCarrinho();
+}
+
+// Atualizar visualização do carrinho
+function atualizarCarrinho() {
+    if (carrinho.length === 0) {
+        $('#carrinhoItens').html('<p class="text-muted text-center">Carrinho vazio</p>');
+        $('#btnFinalizar').prop('disabled', true);
+    } else {
+        let html = '';
+        carrinho.forEach((item, index) => {
+            const subtotal = item.preco_unitario * item.quantidade;
+            html += `
+                <div class="carrinho-item">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <strong>${item.nome}</strong>
+                            <div><small class="text-muted">${formatarMoeda(item.preco_unitario)} cada</small></div>
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="removerItem(${index})">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="alterarQuantidade(${index}, -1)">-</button>
+                            <button class="btn btn-outline-secondary disabled">${item.quantidade}</button>
+                            <button class="btn btn-outline-secondary" onclick="alterarQuantidade(${index}, 1)">+</button>
+                        </div>
+                        <strong class="text-success">${formatarMoeda(subtotal)}</strong>
+                    </div>
+                </div>
+            `;
+        });
+        $('#carrinhoItens').html(html);
+        $('#btnFinalizar').prop('disabled', false);
+    }
+    
+    calcularTotais();
+}
+
+// Alterar quantidade
+function alterarQuantidade(index, delta) {
+    const item = carrinho[index];
+    const novaQuantidade = item.quantidade + delta;
+    
+    if (novaQuantidade <= 0) {
+        removerItem(index);
+    } else if (novaQuantidade > item.estoque_maximo) {
+        alert('Estoque insuficiente!');
+    } else {
+        item.quantidade = novaQuantidade;
+        atualizarCarrinho();
+    }
+}
+
+// Remover item
+function removerItem(index) {
+    carrinho.splice(index, 1);
+    atualizarCarrinho();
+}
+
+// Calcular totais
+function calcularTotais() {
+    const subtotal = carrinho.reduce((sum, item) => sum + (item.preco_unitario * item.quantidade), 0);
+    const desconto = parseFloat($('#desconto').val()) || 0;
+    const total = Math.max(0, subtotal - desconto);
+    
+    $('#subtotal').text(formatarMoeda(subtotal));
+    $('#total').text(formatarMoeda(total));
+}
+
+// Formatar moeda
+function formatarMoeda(valor) {
+    return valor.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }) + ' MT';
+}
+
+// Eventos
+$('#desconto').on('input', calcularTotais);
+
+$('#btnLimpar').click(function() {
+    if (carrinho.length > 0 && confirm('Deseja realmente limpar o carrinho?')) {
+        carrinho = [];
+        $('#buscaProduto').val('');
+        $('#resultadosProdutos').html('<p class="text-muted text-center">Digite para buscar produtos...</p>');
+        atualizarCarrinho();
+    }
+});
+
+$('#btnFinalizar').click(function() {
+    if (carrinho.length === 0) return;
+    
+    const subtotal = carrinho.reduce((sum, item) => sum + (item.preco_unitario * item.quantidade), 0);
+    const desconto = parseFloat($('#desconto').val()) || 0;
+    const total = subtotal - desconto;
+    
+    const venda = {
+        itens: carrinho.map(item => ({
+            produto_id: item.produto_id,
+            quantidade: item.quantidade,
+            preco_unitario: item.preco_unitario,
+            subtotal: item.preco_unitario * item.quantidade,
+            desconto: 0,
+            total: item.preco_unitario * item.quantidade
+        })),
+        cliente_id: $('#cliente').val() || null,
+        forma_pagamento: $('#formaPagamento').val(),
+        subtotal: subtotal,
+        desconto: desconto,
+        total: total
+    };
+    
+    $.ajax({
+        url: '/vendas/processar',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(venda),
+        success: function(response) {
+            $('#numeroVenda').text(response.numero_venda);
+            $('#totalVenda').text(formatarMoeda(total));
+            $('#btnImprimir').data('venda-id', response.venda_id);
+            $('#sucessoModal').modal('show');
+            
+            // Limpar carrinho
+            carrinho = [];
+            $('#buscaProduto').val('');
+            $('#desconto').val(0);
+            $('#cliente').val('');
+            $('#formaPagamento').val('dinheiro');
+            atualizarCarrinho();
+        },
+        error: function(xhr) {
+            alert('Erro ao processar venda: ' + (xhr.responseJSON?.error || 'Erro desconhecido'));
+        }
+    });
+});
+
+$('#btnImprimir').click(function() {
+    const vendaId = $(this).data('venda-id');
+    window.open('/vendas/' + vendaId + '/imprimir', '_blank');
+});
+</script>
+{% endblock %}

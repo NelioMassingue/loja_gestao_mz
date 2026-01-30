@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if produto else 'Novo' }} Produto{% endblock %}
+{% block page_title %}{{ 'Editar' if produto else 'Novo' }} Produto{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-box-seam"></i> {{ 'Editar' if produto else 'Cadastrar' }} Produto
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Código *</label>
+                            <input type="text" name="codigo" class="form-control" 
+                                   value="{{ produto.codigo if produto }}" required>
+                            <small class="text-muted">Código único do produto</small>
+                        </div>
+                        
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Nome do Produto *</label>
+                            <input type="text" name="nome" class="form-control" 
+                                   value="{{ produto.nome if produto }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Descrição</label>
+                        <textarea name="descricao" class="form-control" rows="3">{{ produto.descricao if produto }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Categoria</label>
+                            <select name="categoria_id" class="form-select">
+                                <option value="">Sem categoria</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}" 
+                                        {% if produto and produto.categoria_id == cat.id %}selected{% endif %}>
+                                    {{ cat.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Fornecedor</label>
+                            <select name="fornecedor_id" class="form-select">
+                                <option value="">Sem fornecedor</option>
+                                {% for forn in fornecedores %}
+                                <option value="{{ forn.id }}" 
+                                        {% if produto and produto.fornecedor_id == forn.id %}selected{% endif %}>
+                                    {{ forn.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Preço de Custo (MT) *</label>
+                            <input type="number" name="preco_custo" class="form-control" 
+                                   value="{{ produto.preco_custo if produto }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Preço de Venda (MT) *</label>
+                            <input type="number" name="preco_venda" class="form-control" 
+                                   value="{{ produto.preco_venda if produto }}" 
+                                   step="0.01" min="0" required>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Unidade</label>
+                            <select name="unidade_medida" class="form-select">
+                                <option value="UN" {% if produto and produto.unidade_medida == 'UN' %}selected{% endif %}>Unidade</option>
+                                <option value="KG" {% if produto and produto.unidade_medida == 'KG' %}selected{% endif %}>Quilograma</option>
+                                <option value="L" {% if produto and produto.unidade_medida == 'L' %}selected{% endif %}>Litro</option>
+                                <option value="M" {% if produto and produto.unidade_medida == 'M' %}selected{% endif %}>Metro</option>
+                                <option value="CX" {% if produto and produto.unidade_medida == 'CX' %}selected{% endif %}>Caixa</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        {% if not produto %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estoque Inicial</label>
+                            <input type="number" name="estoque_inicial" class="form-control" 
+                                   value="0" min="0">
+                            <small class="text-muted">Quantidade inicial em estoque</small>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estoque Mínimo</label>
+                            <input type="number" name="estoque_minimo" class="form-control" 
+                                   value="{{ produto.estoque_minimo if produto else 0 }}" min="0">
+                            <small class="text-muted">Alerta quando estoque atingir este valor</small>
+                        </div>
+                    </div>
+                    
+                    {% if produto %}
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" name="ativo" class="form-check-input" id="ativo"
+                                   {% if produto.ativo %}checked{% endif %}>
+                            <label class="form-check-label" for="ativo">Produto Ativo</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('produtos.listar') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> {{ 'Atualizar' if produto else 'Cadastrar' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

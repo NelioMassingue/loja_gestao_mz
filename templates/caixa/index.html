@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Controle de Caixa{% endblock %}
+{% block page_title %}Controle de Caixa{% endblock %}
+
+{% block content %}
+<!-- Caixa Fechado -->
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-cash-coin"></i> Abrir Novo Caixa
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('caixa.abrir') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Saldo Inicial (MT)</label>
+                        <input type="number" name="saldo_inicial" class="form-control" 
+                               step="0.01" min="0" value="0" required>
+                        <small class="text-muted">Valor em dinheiro na abertura do caixa</small>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-unlock"></i> Abrir Caixa
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Histórico de Caixas -->
+        {% if caixas %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="bi bi-clock-history"></i> Histórico de Caixas
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Abertura</th>
+                                <th>Fechamento</th>
+                                <th>Saldo Inicial</th>
+                                <th>Saldo Final</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cx in caixas %}
+                            <tr>
+                                <td><strong>{{ cx.numero_caixa }}</strong></td>
+                                <td>{{ cx.data_abertura|data_hora }}</td>
+                                <td>{{ cx.data_fechamento|data_hora if cx.data_fechamento else '-' }}</td>
+                                <td>{{ cx.saldo_inicial|moeda }}</td>
+                                <td>
+                                    {% if cx.saldo_final %}
+                                    <strong>{{ cx.saldo_final|moeda }}</strong>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cx.status == 'aberto' %}
+                                    <span class="badge bg-success">Aberto</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Fechado</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('caixa.detalhes', id=cx.id) }}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
